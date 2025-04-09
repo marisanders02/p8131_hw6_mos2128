@@ -85,12 +85,12 @@ bind_rows(
 
 ```
 
-The intercept, gender and age coefficients for the compound symmetry and autoregressive covariance are the same. For the exponential covariance model, the intercept, gender, and age are similar to the others. Boys consistently have about a 2.3 mm greater distance than girls. Distance increases by about 0.65–0.66 mm per year of age. 
+The intercept, gender and age coefficients for the compound symmetry and autoregressive covariance are the same. For the exponential covariance model, the intercept, gender, and age are similar to the others. 
 
 ```{r}
-summary(fit_cs)$corFixed %>% knitr::kable()
-summary(fit_ar1)$corFixed %>% knitr::kable()
-summary(fit_exp)$corFixed %>% knitr::kable()
+vcov(fit_cs) %>% knitr::kable()
+vcov(fit_ar1) %>% knitr::kable()
+vcov(fit_exp) %>% knitr::kable()
 data.frame(
   Model = c("Compound Symmetry", "AR(1)", "Exponential"),
   AIC = c(
@@ -101,7 +101,7 @@ data.frame(
 ) %>% knitr::kable()
 ```
 
-Compound symmetry assumes constant correlation across all time points: $\rho -1.0986123$. This means that these might be weak intra-subject correlation because the value is a fairly large negative value. Autoregressive covariance fit failed to detect autocorrelation: $\phi = 0$ implies no correlation over time. Exponential has a $\rho = -0.3502403$, meaning that there may be a decaying correlation with increasing time difference, but it is not a very strong correlation. Exponential seems to be the best model with the lowest AIC, but only slightly. It is marginally better at explaining the data than constant or no correlation. 
+In all the models, age and gender are uncorrelated. The variance of the intercept in the compound structure and the ar 1 structure are slightly lower than the variance in the intercept in the exponential model. The variance in gender is similar among all the modes. The variance of age is larger in the exponential model than in the compound or AR 1 model. 
 
 ```{r}
 fit_cs_comp <- lme(Distance ~ Gender + Age, random = ~1 | Child, data = data,
@@ -115,3 +115,4 @@ fit_ar1_comp <- lme(Distance ~ Gender + Age, random = ~1 | Child, data = data,
 anova(fit_cs_comp, fit_exp_comp, fit_ar1_comp) 
 ```
 
+Based on the AIC, BICm and log likelihood, the exponential covariate structure is the best. 
