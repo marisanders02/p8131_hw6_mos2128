@@ -1,0 +1,117 @@
+---
+title: "Homework 6"
+author: "Mari Sanders"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+
+```{r setup}
+library(tidyverse)
+library(nlme)
+```
+
+# Problem 1 
+
+![](IMG_0591.jpg)
+
+# Problem 2 
+
+## (a)
+```{r}
+data <- read.table("HW6-dental.txt") %>% drop_na() %>% as.data.frame() %>% slice(-1) %>% rename(Index = V1, Child = V2, Age = V3, Distance = V4, Gender = V5) %>% mutate(Age = as.numeric(Age),Distance = as.numeric(Distance), Gender = factor(Gender, levels = c(0,1)))
+
+ggplot(data) + 
+  geom_path(aes(x = Age, y = Distance, group = Child, color = factor(Gender, levels = c(0, 1)))) +
+  ggtitle("Score change after intervention") +
+  theme_classic() +
+  labs(
+    title = "Pituitary to Pterygomaxillary Distance by Age and Gender",
+    x = "Age (years)", 
+    y = "Distance", 
+    color = "Gender"
+  )
+
+```
+
+## (b)
+
+![](IMG_0592.jpg)
+
+## (c)
+
+```{r}
+fit_cs <- lme(Distance ~ Gender + Age, random = ~1 | Child, data = data,
+                correlation = corCompSymm(form = ~1 | Child),  method='REML')
+summary(fit_cs)
+fit_exp <- lme(Distance ~ Gender + Age, random = ~1 | Child, data = data,
+                 correlation = corExp(form = ~ Age | Child),  method='REML')
+summary(fit_exp)
+fit_ar1 <- lme(Distance ~ Gender + Age, random = ~1 | Child, data = data,
+                 correlation = corAR1(form = ~ Age | Child), method='REML')
+summary(fit_ar1)
+
+
+```
+
+
+```{r}
+sm_cs <- summary(fit_cs)$tTable
+sm_ar1 <- summary(fit_ar1)$tTable
+sm_exp <- summary(fit_exp)$tTable
+
+bind_rows(
+  data.frame(
+    Model = "Compound Symmetry",
+    Intercept = sm_cs["(Intercept)", "Value"],
+    Gender = sm_cs["Gender1", "Value"],
+    Age = sm_cs["Age", "Value"]
+  ),
+  data.frame(
+    Model = "AR(1)",
+    Intercept = sm_ar1["(Intercept)", "Value"],
+    Gender = sm_ar1["Gender1", "Value"],
+    Age = sm_ar1["Age", "Value"]
+  ),
+  data.frame(
+    Model = "Exponential",
+    Intercept = sm_exp["(Intercept)", "Value"],
+    Gender = sm_exp["Gender1", "Value"],
+    Age = sm_exp["Age", "Value"]
+  )
+)
+
+```
+
+The intercept, gender and age coefficients for the compound symmetry and autoregressive covariance are the same. For the exponential covariance model, the intercept, gender, and age are similar to the others. Boys consistently have about a 2.3 mm greater distance than girls. Distance increases by about 0.65–0.66 mm per year of age. 
+
+```{r}
+summary(fit_cs)$corFixed %>% knitr::kable()
+summary(fit_ar1)$corFixed %>% knitr::kable()
+summary(fit_exp)$corFixed %>% knitr::kable()
+data.frame(
+  Model = c("Compound Symmetry", "AR(1)", "Exponential"),
+  AIC = c(
+    as.numeric(summary(fit_cs)$AIC), 
+    as.numeric(summary(fit_ar1)$AIC), 
+    as.numeric(summary(fit_exp)$AIC)
+  )
+) %>% knitr::kable()
+```
+
+Compound symmetry assumes constant correlation across all time points: $\rho -1.0986123$. This means that these might be weak intra-subject correlation because the value is a fairly large negative value. Autoregressive covariance fit failed to detect autocorrelation: $\phi = 0$ implies no correlation over time. Exponential has a $\rho = -0.3502403$, meaning that there may be a decaying correlation with increasing time difference, but it is not a very strong correlation. Exponential seems to be the best model with the lowest AIC, but only slightly. It is marginally better at explaining the data than constant or no correlation. 
+
+```{r}
+fit_cs_comp <- lme(Distance ~ Gender + Age, random = ~1 | Child, data = data,
+                correlation = corCompSymm(form = ~1 | Child),  method='ML')
+summary(fit_cs)
+fit_exp_comp <- lme(Distance ~ Gender + Age, random = ~1 | Child, data = data,
+                 correlation = corExp(form = ~ Age | Child),  method='ML')
+summary(fit_exp)
+fit_ar1_comp <- lme(Distance ~ Gender + Age, random = ~1 | Child, data = data,
+                 correlation = corAR1(form = ~ Age | Child), method='ML')
+anova(fit_cs_comp, fit_exp_comp, fit_ar1_comp) 
+```
+
